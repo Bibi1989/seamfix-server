@@ -1,32 +1,32 @@
 import nodemailer from "nodemailer";
-const nodemailer_sendgrid = require("nodemailer-sendgrid");
 
-export const sendMail = (email: string, message: string, subject: string) => {
-  // let transporter: any = nodemailer.createTransport(
-  //   nodemailer_sendgrid({
-  //     apiKey: process.env.SENDGRID_API_KEY,
-  //   })
-  // );
-  let transporter: any = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_MAIL_AUTH,
-      pass: process.env.PASSWORD_MAIL_AUTH,
-    },
-  });
+export const sendEmail = async (options: {
+  [key: string]: string | number | boolean;
+}) => {
+  try {
+    const { email, subject, message, resetUrl } = options;
+    console.log(options);
 
-  const mailOptions = {
-    from: "bmanagerapp@gmail.com",
-    to: email,
-    subject,
-    text: message,
-  };
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      auth: {
+        user: process.env.SMTP_EMAIL,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    } as any);
 
-  transporter.sendMail(mailOptions, (err: Error, data: any) => {
-    if (err) {
-      console.log(err);
-    } else {
-      console.log("Email sent!!!" + data);
-    }
-  });
+    let message_info: any = {
+      from: `${process.env.FROM_NAME} ${process.env.FROM_EMAIL}`, // sender address
+      to: email,
+      subject,
+      html: `${message}`,
+    };
+
+    const info = await transporter.sendMail(message_info);
+
+    return info;
+  } catch (error) {
+    throw error;
+  }
 };

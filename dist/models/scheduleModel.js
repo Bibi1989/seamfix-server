@@ -9,11 +9,12 @@ const ScheduleSchema = new mongoose_1.default.Schema({
     scheduler: String,
     schedule_date: String,
     performed_date: Date,
+    file: String,
     perform_count: {
         type: Number,
         default: 0,
     },
-    file: String,
+    email: String,
     type: String,
     interval_range: String,
     interval_time: String,

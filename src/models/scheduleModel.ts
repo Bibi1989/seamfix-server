@@ -1,16 +1,16 @@
 import mongoose from "mongoose";
 
 export interface SchedueInterface {
-  _id: string;
+  _id?: string;
   name: string;
   scheduler: string;
   schedule_date: string;
   performed_date?: string;
   perform_count?: string;
-  file?: string;
-  type: string;
-  interval_range: string;
-  interval_time: string;
+  email?: string;
+  type?: string;
+  interval_range?: string;
+  interval_time?: string;
   stop_date?: string;
 }
 
@@ -19,11 +19,12 @@ const ScheduleSchema = new mongoose.Schema({
   scheduler: String,
   schedule_date: String,
   performed_date: Date,
+  file: String,
   perform_count: {
     type: Number,
     default: 0,
   },
-  file: String,
+  email: String,
   type: String,
   interval_range: String,
   interval_time: String,

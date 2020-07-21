@@ -1,6 +1,7 @@
 import Schedule, { SchedueInterface } from "../models/scheduleModel";
 import { addHours } from "./reportController";
 import { DateInterface } from "../interfaces/interface";
+import { sendEmail } from "../mail/mail";
 
 export const sentReport = async () => {
   try {
@@ -18,53 +19,68 @@ export const sentReport = async () => {
 
 const uploadReport = (reports: any[]) => {
   reports.forEach((report) => {
-    // upload to cloud
     updateReport(report);
   });
 };
 
 const updateReport = async (report: SchedueInterface) => {
-  console.log(isReoccuring(report));
-  if (isReoccuring(report)) {
-    console.log("updateReport");
+  if (
+    report.type === "once" &&
+    report.schedule_date < new Date().toISOString()
+  ) {
     await Schedule.findByIdAndUpdate(
       report._id,
       {
-        schedule_date: newSchedule(report.interval_time, report.interval_range),
+        performed_date: new Date().toISOString(),
+        schedule_date: new Date().toISOString(),
         perform_count: report.perform_count + 1,
       },
       { new: true }
     );
   } else {
-    await Schedule.findByIdAndUpdate(report._id, {
-      performed_date: Date.now(),
-      perform_count: report.perform_count + 1,
-    });
-  }
-};
+    if (report.type === "reoccuring") {
+      // recurring without stoppage time
+      if (report.interval_time && report.interval_range && !report.stop_date) {
+        await Schedule.findByIdAndUpdate(
+          report._id,
+          {
+            schedule_date: newSchedule(
+              report.interval_time,
+              report.interval_range
+            ),
+            perform_count: report.perform_count + 1,
+          },
+          { new: true }
+        );
+      }
 
-const isReoccuring = (report: SchedueInterface) => {
-  if (report.type !== "reoccuring") return false;
-
-  // recurring without stoppage time
-  if (
-    report.interval_time &&
-    Number(report.interval_range) > 0 &&
-    !report.stop_date
-  ) {
-    return true;
-  }
-
-  // reoccuring with stoppage time
-  if (
-    report.interval_time &&
-    report.interval_range &&
-    report.stop_date &&
-    report.stop_date < report.schedule_date
-  ) {
-    return true;
-  } else {
-    return false;
+      // reoccuring with stoppage time
+      if (report.interval_time && report.interval_range && report.stop_date) {
+        if (report.stop_date < new Date().toISOString()) {
+          await Schedule.findByIdAndUpdate(
+            report._id,
+            {
+              performed_date: new Date().toISOString(),
+              schedule_date: new Date().toISOString(),
+              perform_count: report.perform_count + 1,
+            },
+            { new: true }
+          );
+        } else {
+          await Schedule.findByIdAndUpdate(
+            report._id,
+            {
+              schedule_date: newSchedule(
+                report.interval_time,
+                report.interval_range
+              ),
+              perform_count: report.perform_count + 1,
+            },
+            { new: true }
+          );
+        }
+      }
+    }
   }
 };
 
@@ -84,11 +100,7 @@ const intervalCal: DateInterface = {
 
 const newSchedule = (time: string, interval: string) => {
   let min = Number(interval) * intervalCal[time];
-  console.log(min);
-  console.log(new Date(Date.now() + INTERVAL_RANGE_MAP[time] * min));
   let date_str: any = new Date(Date.now() + INTERVAL_RANGE_MAP[time] * min);
-  console.log({ date_str });
   let date = new Date(addHours(date_str, 60));
-  console.log({ date });
   return new Date(Date.now() + INTERVAL_RANGE_MAP[time] * min).toISOString();
 };

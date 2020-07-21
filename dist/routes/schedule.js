@@ -5,6 +5,6 @@ const reportController_1 = require("../controllers/reportController");
 const route = express_1.Router();
 route.get("/upload", reportController_1.getReports);
 route.post("/upload", reportController_1.uploadReports);
-route.delete("/upload", reportController_1.deleteReport);
+route.delete("/upload/:id", reportController_1.deleteReport);
 exports.default = route;
 //# sourceMappingURL=schedule.js.map

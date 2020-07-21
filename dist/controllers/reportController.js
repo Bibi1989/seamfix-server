@@ -14,17 +14,32 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const cloudinary_1 = require("cloudinary");
 const scheduleModel_1 = __importDefault(require("../models/scheduleModel"));
+const validate_1 = require("../validate/validate");
 cloudinary_1.v2.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 exports.uploadReports = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    console.log(req.body);
     try {
-        const schedule = new scheduleModel_1.default(Object.assign({}, req.body));
-        yield schedule.save();
-        res.json({ status: "success", data: "schedule" });
+        const errors = validate_1.validate(req.body);
+        if (errors.name || errors.scheduler || errors.schedule_date) {
+            return res.status(404).json({ status: "error", error: errors });
+        }
+        console.log({ inp: req.body });
+        let file = req.files.file;
+        const reportFile = yield cloudinary_1.v2.uploader.upload(file.tempFilePath, { folder: "report" }, (err, result) => {
+            if (err) {
+                console.log(err);
+            }
+            return result;
+        });
+        let schedule;
+        if (reportFile.secure_url) {
+            schedule = new scheduleModel_1.default(Object.assign(Object.assign({}, req.body), { file: reportFile.secure_url }));
+            yield schedule.save();
+        }
+        res.json({ status: "success", data: schedule });
     }
     catch (error) {
         res.status(404).json({ status: "error", error: error.message });
@@ -33,7 +48,10 @@ exports.uploadReports = (req, res) => __awaiter(void 0, void 0, void 0, function
 exports.getReports = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const reports = yield scheduleModel_1.default.find();
-        res.json({ status: "success", data: reports });
+        let new_reports = reports.filter((report) => {
+            return new Date(report.schedule_date) > new Date();
+        });
+        res.json({ status: "success", data: new_reports });
     }
     catch (error) {
         res.status(404).json({ staus: "error", error: error.message });
@@ -48,27 +66,6 @@ exports.deleteReport = (req, res) => __awaiter(void 0, void 0, void 0, function*
         res.status(404).json({ status: "error", error: error.message });
     }
 });
-function addHourDiff(report) {
-    let newD;
-    let a = "01";
-    let b = report.schedule_date.slice(0, 11);
-    let c = report.schedule_date.slice(13);
-    if (a[0] == "0" && Number(a[1]) < 9) {
-        a = `0${Number(a[1]) + 1}`;
-    }
-    else if (a[0] == "0" && Number(a[1]) == 9) {
-        a = `${Number(a) + 1}`;
-    }
-    else if (Number(a) > 9 && Number(a) < 23) {
-        a = `${Number(a) + 1}`;
-    }
-    else if (Number(a) >= 23) {
-        a = `00`;
-    }
-    newD = b + a + c;
-    console.log({ newD });
-    return newD;
-}
 exports.addHours = function (report, h) {
     const date = new Date(report).setHours(new Date().getHours() + h / 60);
     return date;

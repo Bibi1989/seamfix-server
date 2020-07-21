@@ -2,6 +2,7 @@ import { Response, Request } from "express";
 import { v2 } from "cloudinary";
 
 import Report, { SchedueInterface } from "../models/scheduleModel";
+import { validate } from "../validate/validate";
 
 v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -10,12 +11,30 @@ v2.config({
 });
 
 export const uploadReports = async (req: any, res: Response) => {
-  console.log(req.body);
   try {
-    const schedule = new Report({ ...req.body });
-    await schedule.save();
+    const errors = validate(req.body);
+    if (errors.name || errors.scheduler || errors.schedule_date) {
+      return res.status(404).json({ status: "error", error: errors });
+    }
+    console.log({ inp: req.body });
+    let file = req.files.file;
+    const reportFile = await v2.uploader.upload(
+      file.tempFilePath,
+      { folder: "report" },
+      (err, result) => {
+        if (err) {
+          console.log(err);
+        }
+        return result;
+      }
+    );
+    let schedule;
+    if (reportFile.secure_url) {
+      schedule = new Report({ ...req.body, file: reportFile.secure_url });
+      await schedule.save();
+    }
 
-    res.json({ status: "success", data: "schedule" });
+    res.json({ status: "success", data: schedule });
   } catch (error) {
     res.status(404).json({ status: "error", error: error.message });
   }
@@ -24,7 +43,10 @@ export const uploadReports = async (req: any, res: Response) => {
 export const getReports = async (req: Request, res: Response) => {
   try {
     const reports = await Report.find();
-    res.json({ status: "success", data: reports });
+    let new_reports = reports.filter((report: any) => {
+      return new Date(report.schedule_date) > new Date();
+    });
+    res.json({ status: "success", data: new_reports });
   } catch (error) {
     res.status(404).json({ staus: "error", error: error.message });
   }
@@ -38,25 +60,6 @@ export const deleteReport = async (req: Request, res: Response) => {
     res.status(404).json({ status: "error", error: error.message });
   }
 };
-
-function addHourDiff(report: SchedueInterface) {
-  let newD;
-  let a = "01";
-  let b = report.schedule_date.slice(0, 11);
-  let c = report.schedule_date.slice(13);
-  if (a[0] == "0" && Number(a[1]) < 9) {
-    a = `0${Number(a[1]) + 1}`;
-  } else if (a[0] == "0" && Number(a[1]) == 9) {
-    a = `${Number(a) + 1}`;
-  } else if (Number(a) > 9 && Number(a) < 23) {
-    a = `${Number(a) + 1}`;
-  } else if (Number(a) >= 23) {
-    a = `00`;
-  }
-  newD = b + a + c;
-  console.log({ newD });
-  return newD;
-}
 
 export const addHours = function (report: string, h: number) {
   const date = new Date(report).setHours(new Date().getHours() + h / 60);
