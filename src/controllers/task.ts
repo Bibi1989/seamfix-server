@@ -1,7 +1,6 @@
 import Schedule, { SchedueInterface } from "../models/scheduleModel";
 import { addHours } from "./reportController";
 import { DateInterface } from "../interfaces/interface";
-import { sendEmail } from "../mail/mail";
 
 export const sentReport = async () => {
   try {
